@@ -2,7 +2,9 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <title>Tetrisss</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
@@ -12,8 +14,9 @@
             --text-main: #f8fafc;
             --text-sub: #94a3b8;
             --accent: #38bdf8;
-            --glass-bg: rgba(15, 23, 42, 0.65);
             --glass-border: rgba(255, 255, 255, 0.08);
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
         }
 
         * {
@@ -24,6 +27,11 @@
             -webkit-tap-highlight-color: transparent;
         }
 
+        html, body {
+            height: 100%;
+            overscroll-behavior: none;
+        }
+
         body {
             margin: 0;
             padding: 0;
@@ -31,46 +39,49 @@
             background-image: radial-gradient(circle at 50% 0%, #1e293b 0%, #0f172a 100%);
             color: var(--text-main);
             font-family: 'Poppins', sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
             min-height: 100vh;
+            min-height: 100dvh;
             overflow: hidden;
             touch-action: none;
+            position: fixed;
+            inset: 0;
         }
 
         .app-container {
-            width: 100%;
-            max-width: 400px;
+            position: absolute;
+            inset: 0;
             display: flex;
             flex-direction: column;
-            align-items: center;
-            padding-top: 3vh;
-            gap: 20px;
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+            padding-top: max(10px, var(--safe-top));
+            padding-bottom: max(14px, var(--safe-bottom));
         }
 
         .header {
-            width: 90%;
+            flex: 0 0 auto;
+            width: 100%;
+            padding: 6px 16px 10px;
             display: flex;
             justify-content: space-between;
             align-items: flex-end;
+            gap: 12px;
         }
 
         .title {
-            font-size: 2.2rem;
+            font-size: 1.9rem;
             font-weight: 800;
             color: var(--accent);
             text-shadow: 0 0 20px rgba(56, 189, 248, 0.3);
             line-height: 1;
-            margin-bottom: 5px;
             letter-spacing: -1px;
         }
 
         .stats {
             display: flex;
-            gap: 15px;
-            text-align: right;
-            align-items: flex-end;
+            gap: 8px;
+            align-items: stretch;
         }
 
         .stat-box {
@@ -79,40 +90,57 @@
             align-items: center;
             justify-content: center;
             background: rgba(255, 255, 255, 0.03);
-            padding: 8px 12px;
-            border-radius: 12px;
+            padding: 6px 10px;
+            border-radius: 10px;
             border: 1px solid var(--glass-border);
+            min-width: 44px;
         }
 
         .stat-box span {
-            font-size: 0.6rem;
+            font-size: 0.55rem;
             color: var(--text-sub);
             font-weight: 600;
-            letter-spacing: 1px;
+            letter-spacing: 1.2px;
         }
 
         .stat-box div {
-            font-size: 1.2rem;
+            font-size: 1.05rem;
             font-weight: 800;
             line-height: 1.1;
             color: #fff;
         }
 
         #next-canvas {
-            width: 50px;
-            height: 50px;
-            margin-top: 4px;
+            width: 38px;
+            height: 38px;
+            margin-top: 2px;
+        }
+
+        .board-area {
+            flex: 1 1 auto;
+            min-height: 0;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 4px 14px;
         }
 
         .board-container {
             position: relative;
-            width: 90%;
-            max-width: 320px;
-            aspect-ratio: 10/20;
+            aspect-ratio: 1 / 2;
+            height: 100%;
+            max-width: 100%;
+            max-height: 100%;
             background-color: var(--board-bg);
-            border-radius: 12px;
+            border-radius: 14px;
             box-shadow: 0 20px 50px rgba(0,0,0,0.5), inset 0 0 0 1px var(--glass-border);
             overflow: hidden;
+            cursor: pointer;
+        }
+
+        @supports (aspect-ratio: 1/2) {
+            .board-container { width: auto; }
         }
 
         #game-canvas {
@@ -124,7 +152,7 @@
         .overlay {
             position: absolute;
             inset: 0;
-            background: rgba(15, 23, 42, 0.85);
+            background: rgba(15, 23, 42, 0.88);
             backdrop-filter: blur(8px);
             -webkit-backdrop-filter: blur(8px);
             display: flex;
@@ -133,6 +161,7 @@
             justify-content: center;
             z-index: 10;
             transition: opacity 0.3s ease;
+            padding: 24px 18px;
         }
 
         .overlay.hidden {
@@ -141,22 +170,64 @@
         }
 
         #overlay-title {
-            font-size: 2.8rem;
+            font-size: 2.2rem;
             font-weight: 800;
             color: #fff;
-            margin-bottom: 30px;
+            margin: 0 0 18px 0;
             letter-spacing: 1px;
             text-align: center;
             line-height: 1.1;
             text-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
 
+        .gesture-guide {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 24px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            padding: 14px 16px;
+            width: 100%;
+            max-width: 260px;
+        }
+
+        .gesture-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.78rem;
+            color: var(--text-main);
+            font-weight: 600;
+            letter-spacing: 0.3px;
+        }
+
+        .gesture-icon {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            background: rgba(56, 189, 248, 0.15);
+            border-radius: 8px;
+            color: var(--accent);
+            flex-shrink: 0;
+        }
+
+        .gesture-row span {
+            color: var(--text-sub);
+            font-weight: 500;
+            font-size: 0.72rem;
+        }
+
         .btn-primary {
             background: var(--accent);
             color: #0f172a;
             border: none;
-            padding: 16px 40px;
-            font-size: 1.2rem;
+            padding: 14px 44px;
+            font-size: 1.1rem;
             font-weight: 800;
             border-radius: 30px;
             cursor: pointer;
@@ -167,126 +238,48 @@
         }
 
         .btn-primary:active {
-            transform: translateY(4px);
+            transform: translateY(3px);
             box-shadow: 0 4px 15px rgba(56, 189, 248, 0.3);
         }
 
-        /* フロート操作パッド */
-        .float-pad {
-            position: fixed;
-            background: var(--glass-bg);
-            backdrop-filter: blur(25px);
-            -webkit-backdrop-filter: blur(25px);
-            border: 1px solid var(--glass-border);
-            border-radius: 32px;
-            padding: 15px 25px 25px 25px;
+        .hint-bar {
+            flex: 0 0 auto;
             display: flex;
-            flex-direction: column;
+            justify-content: center;
             align-items: center;
-            box-shadow: 0 25px 50px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
-            z-index: 1000;
-            opacity: 0; 
-            transition: opacity 0.3s;
+            gap: 14px;
+            padding: 8px 14px 0;
+            font-size: 0.62rem;
+            color: var(--text-sub);
+            letter-spacing: 0.8px;
+            opacity: 0.65;
+            flex-wrap: wrap;
         }
 
-        .drag-handle {
-            width: 50px;
-            height: 6px;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 4px;
-            margin-bottom: 20px;
-            cursor: grab;
-        }
-
-        .drag-handle:active {
-            cursor: grabbing;
-            background: rgba(255, 255, 255, 0.4);
-        }
-
-        .controls-layout {
-            display: flex;
+        .hint-bar span {
+            display: inline-flex;
             align-items: center;
-            gap: 35px;
-        }
-
-        /* 十字キー */
-        .d-pad-wrapper {
-            display: grid;
-            grid-template-columns: 55px 55px 55px;
-            grid-template-rows: 55px 55px 55px;
             gap: 4px;
         }
 
-        .d-btn {
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid var(--glass-border);
-            color: rgba(255, 255, 255, 0.7);
-            font-family: Arial, sans-serif;
-            font-size: 1.4rem;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            cursor: pointer;
-            box-shadow: inset 0 0 10px rgba(255,255,255,0.02), 0 4px 10px rgba(0,0,0,0.2);
-            transition: background 0.1s, color 0.1s;
-            padding: 0;
-        }
-
-        .d-btn:active {
-            background: rgba(255, 255, 255, 0.2);
-            color: #fff;
-        }
-
-        .d-up { grid-column: 2; grid-row: 1; border-radius: 12px 12px 6px 6px; }
-        .d-left { grid-column: 1; grid-row: 2; border-radius: 12px 6px 6px 12px; }
-        .d-right { grid-column: 3; grid-row: 2; border-radius: 6px 12px 12px 6px; }
-        .d-down { grid-column: 2; grid-row: 3; border-radius: 6px 6px 12px 12px; }
-        .d-center { 
-            grid-column: 2; grid-row: 2; 
-            background: rgba(255, 255, 255, 0.03); 
-            border-radius: 6px; 
-            pointer-events: none; 
-            border: 1px solid transparent;
-        }
-
-        /* 回転ボタン */
-        .action-wrapper {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .action-btn {
-            width: 75px;
-            height: 75px;
-            border-radius: 50%;
-            background: rgba(56, 189, 248, 0.15);
-            border: 1px solid rgba(56, 189, 248, 0.3);
+        .hint-bar b {
             color: var(--accent);
-            font-size: 2.2rem;
-            box-shadow: inset 0 2px 10px rgba(255,255,255,0.1), 0 5px 20px rgba(56, 189, 248, 0.2);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            cursor: pointer;
-            transition: transform 0.1s, background 0.1s;
+            font-weight: 700;
         }
 
-        .action-btn:active {
-            background: rgba(56, 189, 248, 0.3);
-            transform: scale(0.92);
+        @media (max-height: 700px) {
+            .title { font-size: 1.6rem; }
+            .header { padding-top: 2px; padding-bottom: 6px; }
+            .stat-box { padding: 4px 8px; }
+            .stat-box div { font-size: 0.95rem; }
+            #next-canvas { width: 32px; height: 32px; }
+            .hint-bar { font-size: 0.58rem; gap: 10px; }
         }
 
-        @media (max-height: 800px) {
-            .app-container { padding-top: 1.5vh; gap: 15px; }
-            .board-container { max-width: 290px; }
-            .d-pad-wrapper {
-                grid-template-columns: 50px 50px 50px;
-                grid-template-rows: 50px 50px 50px;
-            }
-            .action-btn { width: 68px; height: 68px; font-size: 2rem; }
-            .float-pad { padding: 12px 20px 20px 20px; border-radius: 28px; }
-            .controls-layout { gap: 25px; }
+        @media (max-height: 580px) {
+            .hint-bar { display: none; }
+            .gesture-guide { padding: 10px 12px; gap: 8px; }
+            .gesture-row { font-size: 0.72rem; }
         }
     </style>
 </head>
@@ -311,36 +304,43 @@
         </div>
     </header>
 
-    <main class="board-container">
-        <canvas id="game-canvas"></canvas>
-        <div id="overlay" class="overlay">
-            <div id="overlay-title">Tetrisss</div>
-            <button id="btn-start" class="btn-primary">START</button>
-        </div>
-    </main>
-</div>
+    <div class="board-area">
+        <main class="board-container" id="board-container">
+            <canvas id="game-canvas"></canvas>
+            <div id="overlay" class="overlay">
+                <div id="overlay-title">Tetrisss</div>
+                <div class="gesture-guide">
+                    <div class="gesture-row">
+                        <div class="gesture-icon">👆</div>
+                        <div>タップ<br><span>回転</span></div>
+                    </div>
+                    <div class="gesture-row">
+                        <div class="gesture-icon">↔</div>
+                        <div>横スワイプ<br><span>左右に移動</span></div>
+                    </div>
+                    <div class="gesture-row">
+                        <div class="gesture-icon">↓</div>
+                        <div>ゆっくり下スワイプ<br><span>1マス落とす</span></div>
+                    </div>
+                    <div class="gesture-row">
+                        <div class="gesture-icon">⇊</div>
+                        <div>素早く下スワイプ<br><span>一気に下まで落とす</span></div>
+                    </div>
+                </div>
+                <button id="btn-start" class="btn-primary">START</button>
+            </div>
+        </main>
+    </div>
 
-<!-- フロート操作パッド -->
-<div id="float-pad-container" class="float-pad">
-    <div id="pad-drag-handle" class="drag-handle"></div>
-    <div class="controls-layout">
-        <!-- 十字キー -->
-        <div class="d-pad-wrapper">
-            <div class="d-center"></div>
-            <button id="btn-up" class="d-btn d-up">△</button>
-            <button id="btn-left" class="d-btn d-left">◁</button>
-            <button id="btn-right" class="d-btn d-right">▷</button>
-            <button id="btn-down" class="d-btn d-down">▽</button>
-        </div>
-        <!-- 回転ボタン -->
-        <div class="action-wrapper">
-            <button id="btn-rotate" class="action-btn">↻</button>
-        </div>
+    <div class="hint-bar">
+        <span>👆 <b>タップ</b> 回転</span>
+        <span>↔ <b>左右</b> 移動</span>
+        <span>↓ <b>下</b> 1マス</span>
+        <span>⇊ <b>素早く下</b> 一気に</span>
     </div>
 </div>
 
 <script>
-    // --- キャンバスとゲーム設定 ---
     const canvas = document.getElementById('game-canvas');
     const ctx = canvas.getContext('2d', { alpha: false });
     const nextCanvas = document.getElementById('next-canvas');
@@ -348,31 +348,24 @@
 
     const ROWS = 20;
     const COLS = 10;
-    const BLOCK_SIZE = 30; // 内部解像度 300x600
+    const BLOCK_SIZE = 30;
     canvas.width = COLS * BLOCK_SIZE;
     canvas.height = ROWS * BLOCK_SIZE;
     ctx.scale(BLOCK_SIZE, BLOCK_SIZE);
 
-    const NEXT_SIZE = 24; // 内部解像度 96x96
+    const NEXT_SIZE = 24;
     nextCanvas.width = 4 * NEXT_SIZE;
     nextCanvas.height = 4 * NEXT_SIZE;
     nextCtx.scale(NEXT_SIZE, NEXT_SIZE);
 
-    // モダンで鮮やかなカラーパレット
     const colors = [
         null,
-        '#a855f7', // 1: T (Purple)
-        '#eab308', // 2: O (Yellow)
-        '#f97316', // 3: L (Orange)
-        '#3b82f6', // 4: J (Blue)
-        '#06b6d4', // 5: I (Cyan)
-        '#22c55e', // 6: S (Green)
-        '#ef4444'  // 7: Z (Red)
+        '#a855f7', '#eab308', '#f97316', '#3b82f6',
+        '#06b6d4', '#22c55e', '#ef4444'
     ];
 
     const pieces = ['T','O','L','J','I','S','Z'];
 
-    // SRS基準のマトリクス
     function createPiece(type) {
         switch (type) {
             case 'T': return { type: 'T', matrix: [[0,1,0],[1,1,1],[0,0,0]] };
@@ -385,7 +378,6 @@
         }
     }
 
-    // SRSキックテーブル
     const kickTable = {
         normal: {
             '0->1': [[0,0], [-1,0], [-1,-1], [0, 2], [-1, 2]],
@@ -409,13 +401,12 @@
         }
     };
 
-    // --- 状態管理 ---
     let arena = createMatrix(COLS, ROWS);
     const player = { pos: {x: 0, y: 0}, matrix: null, type: '', rotIndex: 0 };
     let nextPieceObj = null;
     
     let dropCounter = 0;
-    let dropInterval = 1000;
+    let dropInterval = 3000;
     let lastTime = 0;
     
     let score = 0;
@@ -425,8 +416,14 @@
     let isGameOver = false;
     let isPaused = true;
     let animationId = null;
+    let pieceId = 0; // 駒が新しく出現するたびに+1。ジェスチャーが同じ駒に対するか判定するのに使う
 
-    // --- ロジック ---
+    function haptic(ms = 8) {
+        if (navigator.vibrate) {
+            try { navigator.vibrate(ms); } catch(e) {}
+        }
+    }
+
     function createMatrix(w, h) {
         const matrix = [];
         while (h--) matrix.push(new Array(w).fill(0));
@@ -476,13 +473,16 @@
         arenaSweep();
         updateScore();
         dropCounter = 0;
+        haptic(20);
     }
 
     function playerMove(dir) {
         player.pos.x += dir;
         if (collide(arena, player)) {
             player.pos.x -= dir;
+            return false;
         }
+        return true;
     }
 
     function playerRotate(dir) {
@@ -492,13 +492,11 @@
         const stateStr = `${player.rotIndex}->${nextRotIndex}`;
         
         const nextMatrix = player.matrix.map(row => [...row]);
-        // 転置
         for (let y = 0; y < nextMatrix.length; ++y) {
             for (let x = 0; x < y; ++x) {
                 [nextMatrix[x][y], nextMatrix[y][x]] = [nextMatrix[y][x], nextMatrix[x][y]];
             }
         }
-        // 反転
         if (dir > 0) nextMatrix.forEach(row => row.reverse());
         else nextMatrix.reverse();
 
@@ -518,10 +516,9 @@
             
             if (!collide(arena, player)) {
                 player.rotIndex = nextRotIndex;
-                return; // 回転成功
+                return;
             }
             
-            // 失敗時は元に戻して次へ
             player.pos.x = origX;
             player.pos.y = origY;
             player.matrix = origMatrix;
@@ -543,6 +540,10 @@
 
         if (collide(arena, player)) gameOver();
         drawNext();
+
+        // 新しい駒は必ず通常の重力でスタート (前の駒に対するスワイプの効果を引き継がない)
+        pieceId++;
+        dropCounter = 0;
     }
 
     function arenaSweep() {
@@ -561,11 +562,12 @@
         }
 
         if (linesCleared > 0) {
+            haptic(30);
             linesClearedTotal += linesCleared;
             const newLevel = Math.floor(linesClearedTotal / 10) + 1;
             if (newLevel > level) {
                 level = newLevel;
-                dropInterval = Math.max(100, 1000 - (level - 1) * 80);
+                dropInterval = Math.max(400, 3000 - (level - 1) * 150);
             }
         }
     }
@@ -585,6 +587,7 @@
         title.style.color = '#ef4444';
         document.getElementById('btn-start').innerText = 'RETRY';
         cancelAnimationFrame(animationId);
+        haptic(60);
     }
 
     function resetGame() {
@@ -592,20 +595,22 @@
         score = 0;
         level = 1;
         linesClearedTotal = 0;
-        dropInterval = 1000;
+        dropInterval = 3000;
         isGameOver = false;
         isPaused = false;
+        const title = document.getElementById('overlay-title');
+        title.style.color = '#fff';
+        title.innerHTML = 'Tetrisss';
         updateScore();
         playerReset();
         lastTime = performance.now();
         update();
     }
 
-    // --- 描画処理 ---
     function drawBlock(context, x, y, color) {
         const m = 0.04;
         const s = 1 - m * 2;
-        const r = 0.15; // 角丸
+        const r = 0.15;
 
         context.fillStyle = color;
         if (context.roundRect) {
@@ -616,7 +621,6 @@
             context.fillRect(x + m, y + m, s, s);
         }
 
-        // 上部のフラットなハイライトでモダンな質感を出す
         context.fillStyle = 'rgba(255, 255, 255, 0.2)';
         if (context.roundRect) {
             context.beginPath();
@@ -648,11 +652,9 @@
     }
 
     function draw() {
-        // 背景
         ctx.fillStyle = '#1e293b';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        // グリッド線
         ctx.strokeStyle = 'rgba(255,255,255,0.02)';
         ctx.lineWidth = 0.05;
         ctx.beginPath();
@@ -691,187 +693,165 @@
         animationId = requestAnimationFrame(update);
     }
 
-    // --- 操作ロジック (十字キー ＆ 回転ボタン) ---
-    const btnUp = document.getElementById('btn-up');
-    const btnLeft = document.getElementById('btn-left');
-    const btnRight = document.getElementById('btn-right');
-    const btnDown = document.getElementById('btn-down');
-    const btnRotate = document.getElementById('btn-rotate');
+    // --- 盤面ジェスチャー操作 (スワイプ＆タップのみ) ---
+    const boardEl = document.getElementById('board-container');
 
-    let moveDir = 0;
-    let moveTimer = null;
-    let moveIntervalObj = null;
+    let touchStartX = 0, touchStartY = 0, touchStartTime = 0;
+    let lastMoveX = 0, lastMoveY = 0;
+    let dragAccumX = 0;
+    let touchActive = false;
+    let movedHorizontally = false;
+    let gestureAxis = null;
 
-    function handleMovePress(dir, e) {
-        if(e) e.preventDefault();
-        if(isPaused || isGameOver) return;
-        
-        playerMove(dir); // 押した瞬間に1マス移動
-        moveDir = dir;
-        
-        // 長押しで連続移動
-        moveTimer = setTimeout(() => {
-            moveIntervalObj = setInterval(() => {
-                playerMove(moveDir);
-            }, 60);
-        }, 200);
+    // ブロックが切り替わった直後はしばらく新しいタッチを無視する
+    // (指のバウンスや誤タッチが新しいブロックに作用するのを防ぐ)
+    let inputBlockedUntil = 0;
+    const PIECE_CHANGE_COOLDOWN_MS = 350;
+
+    function getCellPx() {
+        const r = boardEl.getBoundingClientRect();
+        return r.width / COLS;
     }
 
-    function handleMoveRelease(e) {
-        if(e) e.preventDefault();
-        clearTimeout(moveTimer);
-        clearInterval(moveIntervalObj);
-        moveDir = 0;
-    }
+    boardEl.addEventListener('pointerdown', (e) => {
+        if (isPaused || isGameOver) return;
+        if (e.target.closest('button')) return;
+        // ブロック切り替え直後のクールダウン中はタッチを無視
+        if (Date.now() < inputBlockedUntil) {
+            e.preventDefault();
+            return;
+        }
 
-    let isDownPressed = false;
-    let downPressTimer = null;
+        e.preventDefault();
+        touchStartX = lastMoveX = e.clientX;
+        touchStartY = lastMoveY = e.clientY;
+        touchStartTime = Date.now();
+        movedHorizontally = false;
+        dragAccumX = 0;
+        gestureAxis = null;
+        touchActive = true;
+        try { boardEl.setPointerCapture(e.pointerId); } catch(_) {}
+    });
 
-    function handleDownPress(e) {
-        if(e) e.preventDefault();
-        if(isPaused || isGameOver) return;
-        
-        isDownPressed = true;
-        playerDrop(); // 押した瞬間にソフトドロップ
-        
-        // 300ms長押しでハードドロップ発動
-        downPressTimer = setTimeout(() => {
-            if (isDownPressed) {
-                playerHardDrop();
+    boardEl.addEventListener('pointermove', (e) => {
+        if (!touchActive) return;
+        if (isPaused || isGameOver) return;
+        e.preventDefault();
+
+        const cellPx = getCellPx();
+        lastMoveX = e.clientX;
+        lastMoveY = e.clientY;
+
+        const totalDx = e.clientX - touchStartX;
+        const totalDy = e.clientY - touchStartY;
+        const absDx = Math.abs(totalDx);
+        const absDy = Math.abs(totalDy);
+
+        // 方向ロック判定：12px 以上動いた時点で、優勢な軸にロックする
+        // 縦が優勢なら横移動を一切発火しない (= 下スワイプ中に横ズレしない)
+        if (gestureAxis === null) {
+            if (absDx > 12 || absDy > 12) {
+                if (absDy > absDx) {
+                    gestureAxis = 'v';
+                } else {
+                    gestureAxis = 'h';
+                }
             }
-        }, 300);
-    }
+        }
 
-    function handleDownRelease(e) {
-        if(e) e.preventDefault();
-        isDownPressed = false;
-        clearTimeout(downPressTimer);
-    }
+        // 横方向ロックのときだけ、横移動を発火
+        if (gestureAxis === 'h') {
+            // 累積を「タッチ開始からの総ズレ」基準にして、横方向のドラッグで1セルずつ移動
+            // セル幅の0.85倍以上動いたら1マス、戻ればキャンセル
+            const targetMoves = Math.trunc(totalDx / (cellPx * 0.85));
+            const currentMoves = movedHorizontally ? Math.trunc(dragAccumX / (cellPx * 0.85)) : 0;
+            const delta = targetMoves - currentMoves;
+            for (let i = 0; i < Math.abs(delta); i++) {
+                const dir = delta > 0 ? 1 : -1;
+                playerMove(dir);
+            }
+            if (delta !== 0) {
+                dragAccumX = totalDx;
+                movedHorizontally = true;
+            }
+        }
+        // 縦方向ロックのときは何もしない (release時にハードドロップ判定)
+    });
 
-    function handleUpPress(e) {
-        if(e) e.preventDefault();
-        if(isPaused || isGameOver) return;
-        playerHardDrop(); // 上ボタンもハードドロップとして機能させる
-    }
+    boardEl.addEventListener('pointerup', (e) => {
+        if (!touchActive) return;
+        touchActive = false;
+        try { boardEl.releasePointerCapture(e.pointerId); } catch(_) {}
 
-    function handleRotatePress(e) {
-        if(e) e.preventDefault();
-        if(isPaused || isGameOver) return;
-        playerRotate(1); // 右回転のみ
-    }
+        if (isPaused || isGameOver) return;
 
-    // Up
-    btnUp.addEventListener('pointerdown', (e) => { e.target.setPointerCapture(e.pointerId); handleUpPress(e); });
-    
-    // Left
-    btnLeft.addEventListener('pointerdown', (e) => { e.target.setPointerCapture(e.pointerId); handleMovePress(-1, e); });
-    btnLeft.addEventListener('pointerup', (e) => { e.target.releasePointerCapture(e.pointerId); handleMoveRelease(e); });
-    btnLeft.addEventListener('pointercancel', handleMoveRelease);
+        const dx = e.clientX - touchStartX;
+        const dy = e.clientY - touchStartY;
+        const dt = Date.now() - touchStartTime;
+        const cellPx = getCellPx();
 
-    // Right
-    btnRight.addEventListener('pointerdown', (e) => { e.target.setPointerCapture(e.pointerId); handleMovePress(1, e); });
-    btnRight.addEventListener('pointerup', (e) => { e.target.releasePointerCapture(e.pointerId); handleMoveRelease(e); });
-    btnRight.addEventListener('pointercancel', handleMoveRelease);
+        // タップ (ほぼ動かない短いタッチ) → 回転
+        if (gestureAxis === null && Math.abs(dx) < 10 && Math.abs(dy) < 10 && dt < 350) {
+            haptic(8);
+            playerRotate(1);
+            return;
+        }
 
-    // Down
-    btnDown.addEventListener('pointerdown', (e) => { e.target.setPointerCapture(e.pointerId); handleDownPress(e); });
-    btnDown.addEventListener('pointerup', (e) => { e.target.releasePointerCapture(e.pointerId); handleDownRelease(e); });
-    btnDown.addEventListener('pointercancel', handleDownRelease);
+        // 縦方向ロックされていて、最低限の距離が下方向にある → 落下処理
+        // 横方向ロックされていたら何もしない (横移動だけで終了)
+        if (gestureAxis === 'v' && dy > 0) {
+            const minVertical = Math.max(20, cellPx * 0.6);
+            if (dy <= minVertical) return;
 
-    // Rotate
-    btnRotate.addEventListener('pointerdown', handleRotatePress);
+            // 平均速度 (px/ms) と移動距離で「素早い下スワイプ」を判定
+            const velocity = dy / Math.max(1, dt);
+            const isQuickSwipe = velocity > 0.8 || dy > cellPx * 4;
 
-    // PCキーボード対応 (デバッグ・補助用)
-    document.addEventListener('keydown', event => {
-        if(isPaused) return;
-        switch(event.keyCode) {
-            case 37: playerMove(-1); break; // 左
-            case 39: playerMove(1); break;  // 右
-            case 40: playerDrop(); break;   // 下 (ソフトドロップ)
-            case 38: playerHardDrop(); break;// 上 (ハードドロップ)
-            case 32: playerHardDrop(); break;// スペース (ハードドロップ)
-            case 88: // X
-            case 13: playerRotate(1); break; // Enter (回転)
+            if (isQuickSwipe) {
+                // 素早い下スワイプ → 現在のブロックを一気にハードドロップ
+                playerHardDrop();
+                // 新しいブロックに次のスワイプが波及しないよう、しばらくタッチをブロック
+                inputBlockedUntil = Date.now() + PIECE_CHANGE_COOLDOWN_MS;
+            } else {
+                // ゆっくりした下スワイプ → 1マスだけ落下
+                const beforeId = pieceId;
+                playerDrop();
+                if (pieceId === beforeId) {
+                    // 駒がロックされていない (=同じ駒のまま) → 自動落下を一時停止
+                    dropCounter = -dropInterval;
+                } else {
+                    // 駒がロックされて新しい駒が出現した → 新しい駒へ作用が波及しないようクールダウン
+                    inputBlockedUntil = Date.now() + PIECE_CHANGE_COOLDOWN_MS;
+                }
+            }
         }
     });
 
-    // --- フロートパッドのドラッグ移動ロジック ---
-    const padContainer = document.getElementById('float-pad-container');
-    const padHandle = document.getElementById('pad-drag-handle');
-
-    let isPadDragging = false;
-    let dragStartX = 0;
-    let dragStartY = 0;
-    let initialLeft = 0;
-    let initialTop = 0;
-    let isPadMoved = false;
-
-    // 初回ロード時に画面下部中央へ配置
-    function initPadPosition() {
-        if (isPadMoved) return;
-        padContainer.style.transform = 'none';
-        const rect = padContainer.getBoundingClientRect();
-        const startLeft = (window.innerWidth - rect.width) / 2;
-        const startTop = window.innerHeight - rect.height - 40; 
-        
-        padContainer.style.left = Math.max(0, startLeft) + 'px';
-        padContainer.style.top = Math.max(0, startTop) + 'px';
-        padContainer.style.bottom = 'auto';
-        padContainer.style.opacity = '1'; 
-    }
-
-    window.addEventListener('load', initPadPosition);
-    window.addEventListener('resize', initPadPosition);
-
-    padHandle.addEventListener('pointerdown', (e) => {
-        e.preventDefault();
-        isPadDragging = true;
-        isPadMoved = true;
-        dragStartX = e.clientX;
-        dragStartY = e.clientY;
-        const rect = padContainer.getBoundingClientRect();
-        initialLeft = rect.left;
-        initialTop = rect.top;
-        padHandle.setPointerCapture(e.pointerId);
+    boardEl.addEventListener('pointercancel', () => {
+        touchActive = false;
     });
 
-    padHandle.addEventListener('pointermove', (e) => {
-        if (!isPadDragging) return;
-        e.preventDefault();
-        const dx = e.clientX - dragStartX;
-        const dy = e.clientY - dragStartY;
-        
-        let newLeft = initialLeft + dx;
-        let newTop = initialTop + dy;
-        
-        const rect = padContainer.getBoundingClientRect();
-        const maxLeft = window.innerWidth - rect.width;
-        const maxTop = window.innerHeight - rect.height;
-        
-        // 画面外にはみ出さないように制限
-        newLeft = Math.max(0, Math.min(newLeft, maxLeft));
-        newTop = Math.max(0, Math.min(newTop, maxTop));
-        
-        padContainer.style.left = newLeft + 'px';
-        padContainer.style.top = newTop + 'px';
+    // PCキーボード (補助)
+    document.addEventListener('keydown', event => {
+        if (isPaused) return;
+        switch (event.keyCode) {
+            case 37: playerMove(-1); break;
+            case 39: playerMove(1); break;
+            case 40: playerDrop(); break;
+            case 38: case 32: playerHardDrop(); break;
+            case 88: case 13: playerRotate(1); break;
+        }
     });
 
-    padHandle.addEventListener('pointerup', (e) => {
-        isPadDragging = false;
-        padHandle.releasePointerCapture(e.pointerId);
-    });
-
-    // --- スタートボタン ---
     document.getElementById('btn-start').addEventListener('click', (e) => {
         e.preventDefault();
+        e.stopPropagation();
         document.getElementById('overlay').classList.add('hidden');
         resetGame();
     });
 
-    // 初期描画
     playerReset();
     draw();
-
 </script>
 </body>
 </html>
